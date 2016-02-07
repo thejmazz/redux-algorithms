@@ -57,9 +57,7 @@ export default (constants) => {
       colour = 'red'
     } else if (status === ACCEPTED) {
       colour = 'green'
-    }
-
-    if (row === smallest) {
+    } else if (status === CURRENT_SMALLEST) {
       colour = 'yellow'
       fontColour = 'black'
     }
@@ -104,6 +102,8 @@ export default (constants) => {
   }
 
   const render = (state) => {
+    console.log(state)
+
     update(state)
 
     clear()
