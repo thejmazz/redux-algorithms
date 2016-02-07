@@ -1,41 +1,41 @@
 /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
-
+/******/
 /******/ 	// The require function
 /******/ 	function __webpack_require__(moduleId) {
-
+/******/
 /******/ 		// Check if module is in cache
 /******/ 		if(installedModules[moduleId])
 /******/ 			return installedModules[moduleId].exports;
-
+/******/
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = installedModules[moduleId] = {
 /******/ 			exports: {},
 /******/ 			id: moduleId,
 /******/ 			loaded: false
 /******/ 		};
-
+/******/
 /******/ 		// Execute the module function
 /******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-
+/******/
 /******/ 		// Flag the module as loaded
 /******/ 		module.loaded = true;
-
+/******/
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
 /******/ 	}
-
-
+/******/
+/******/
 /******/ 	// expose the modules object (__webpack_modules__)
 /******/ 	__webpack_require__.m = modules;
-
+/******/
 /******/ 	// expose the module cache
 /******/ 	__webpack_require__.c = installedModules;
-
+/******/
 /******/ 	// __webpack_public_path__
 /******/ 	__webpack_require__.p = "";
-
+/******/
 /******/ 	// Load entry module and return exports
 /******/ 	return __webpack_require__(0);
 /******/ })
@@ -45,85 +45,216 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-
+	
+	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+	
 	var _redux = __webpack_require__(1);
-
+	
 	var _scheduler = __webpack_require__(12);
-
+	
 	var _scheduler2 = _interopRequireDefault(_scheduler);
-
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
+	
 	// Constants
 	var PENDING_CONSIDERATION = 'PENDING_CONSIDERATION';
 	var REJECTED = 'REJECTED';
 	var ACCEPTED = 'ACCEPTED';
-
+	var CURRENT_SMALLEST = 'CURRENT_SMALLEST';
+	// Actions
+	var PICK_SMALLEST_FINISH_TIME = 'PICK_SMALLEST_FINISH_TIME';
+	var pickSmallestFinishTime = {
+	  type: PICK_SMALLEST_FINISH_TIME
+	};
+	var DELETE_INCOMPATIBLES = 'DELETE_INCOMPATIBLES';
+	var deleteIncompatibles = {
+	  type: DELETE_INCOMPATIBLES
+	};
+	var ACCEPT_CURRENT = 'ACCEPT_CURRENT';
+	var acceptCurrent = {
+	  type: ACCEPT_CURRENT
+	};
+	
+	// Job factory - society
 	var job = function job(_ref) {
 	  var start = _ref.start;
 	  var end = _ref.end;
-
-	  return {
-	    start: start,
-	    end: end,
-	    row: 0,
-	    status: PENDING_CONSIDERATION
-	  };
+	  var _ref$row = _ref.row;
+	  var row = _ref$row === undefined ? 0 : _ref$row;
+	  var _ref$status = _ref.status;
+	  var status = _ref$status === undefined ? PENDING_CONSIDERATION : _ref$status;
+	  return { start: start, end: end, row: row, status: status };
 	};
-
-	var myScheduler = (0, _scheduler2.default)({ PENDING_CONSIDERATION: PENDING_CONSIDERATION, REJECTED: REJECTED, ACCEPTED: ACCEPTED });
-
-	var state = {
-	  js: [job({ start: 0, end: 0.6 }), job({ start: 0.1, end: 0.4 }), job({ start: 0.3, end: 0.5 }), job({ start: 0.3, end: 0.8 }), job({ start: 0.4, end: 0.7 }), job({ start: 0.5, end: 0.9 }), job({ start: 0.6, end: 1 }), job({ start: 0.8, end: 1 })]
+	
+	// Renderer
+	var myScheduler = (0, _scheduler2.default)({ PENDING_CONSIDERATION: PENDING_CONSIDERATION, REJECTED: REJECTED, ACCEPTED: ACCEPTED, CURRENT_SMALLEST: CURRENT_SMALLEST });
+	
+	var initialState = {
+	  // conflict with jobs in renderer
+	  js: [job({ start: 0, end: 0.6 }), job({ start: 0.1, end: 0.4 }), job({ start: 0.3, end: 0.5 }), job({ start: 0.3, end: 0.8 }), job({ start: 0.4, end: 0.7 }), job({ start: 0.5, end: 0.9 }), job({ start: 0.6, end: 1 }), job({ start: 0.8, end: 1 })],
+	  smallest: 0,
+	  lastAction: { type: null }
 	};
-
-	myScheduler.render(state);
+	
+	var intervalScheduler = function intervalScheduler() {
+	  var state = arguments.length <= 0 || arguments[0] === undefined ? initialState : arguments[0];
+	  var _ref2 = arguments[1];
+	  var type = _ref2.type;
+	
+	  var newJs = undefined;
+	  switch (type) {
+	    case PICK_SMALLEST_FINISH_TIME:
+	      // TODO O(n)...need to sort by end to get O(nlog_2(n))
+	      var smallest = state.js[state.smallest].end;
+	      var smallestIndex = state.smallest;
+	
+	      for (var i = smallestIndex; i < state.js.length; i++) {
+	        if (state.js[i].status === PENDING_CONSIDERATION) smallest = state.js[i].end;
+	        smallestIndex = i;
+	      }
+	
+	      state.js.forEach(function (job, i) {
+	        if (job.status === PENDING_CONSIDERATION) {
+	          if (job.end < smallest) {
+	            smallest = job.end;
+	            smallestIndex = i;
+	          }
+	        }
+	      });
+	
+	      newJs = state.js;
+	      newJs[smallestIndex].status = CURRENT_SMALLEST;
+	      console.log("SET SMALLEST TO", smallestIndex);
+	
+	      return _extends({}, state, {
+	        js: newJs,
+	        smallest: smallestIndex,
+	        lastAction: pickSmallestFinishTime
+	      });
+	    case DELETE_INCOMPATIBLES:
+	      newJs = state.js;
+	      var sJob = state.js[state.smallest];
+	
+	      state.js.forEach(function (job, i) {
+	        // TODO make sure this handles all cases...
+	        if (job.start < sJob.end && job.start >= sJob.start && job.status === PENDING_CONSIDERATION) {
+	          job.status = REJECTED;
+	        } else if (job.start < sJob.start && job.end > sJob.start) {
+	          job.status = REJECTED;
+	        } else if (job.end < sJob.end && job.start >= sJob.start && job.status === PENDING_CONSIDERATION) {
+	          job.status = REJECTED;
+	        }
+	      });
+	
+	      return _extends({}, state, {
+	        js: newJs,
+	        lastAction: deleteIncompatibles
+	      });
+	    case ACCEPT_CURRENT:
+	      newJs = state.js;
+	      newJs[state.smallest].status = ACCEPTED;
+	
+	      return _extends({}, state, {
+	        js: newJs,
+	        lastAction: acceptCurrent
+	      });
+	    default:
+	      return state;
+	  }
+	};
+	
+	var store = (0, _redux.createStore)(intervalScheduler);
+	
+	store.subscribe(function () {
+	  return myScheduler.render(store.getState());
+	});
+	
+	store.dispatch({ type: null });
+	
+	// Controls
+	var controls = document.createElement('div');
+	controls.style.position = 'absolute';
+	controls.style.bottom = 0;
+	controls.style.width = '100%';
+	controls.style.height = '50px';
+	controls.style.backgroundColor = 'white';
+	
+	var nextButton = document.createElement('button');
+	nextButton.innerHTML = 'next';
+	nextButton.onclick = function () {
+	
+	  var type = store.getState().lastAction.type;
+	  console.log(type);
+	  switch (type) {
+	    case null:
+	      console.log('pickSmallestFinishTime');
+	      store.dispatch(pickSmallestFinishTime);
+	      break;
+	    case PICK_SMALLEST_FINISH_TIME:
+	      console.log('deleteIncompatibles');
+	      store.dispatch(deleteIncompatibles);
+	      break;
+	    case DELETE_INCOMPATIBLES:
+	      console.log('acceptCurrent');
+	      store.dispatch(acceptCurrent);
+	      break;
+	    case ACCEPT_CURRENT:
+	      console.log('pickSmallestFinishTime');
+	      store.dispatch(pickSmallestFinishTime);
+	      break;
+	    default:
+	      console.log('nothing to do');
+	  }
+	};
+	controls.appendChild(nextButton);
+	
+	document.body.appendChild(controls);
 
 /***/ },
 /* 1 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
-
+	
 	exports.__esModule = true;
 	exports.compose = exports.applyMiddleware = exports.bindActionCreators = exports.combineReducers = exports.createStore = undefined;
-
+	
 	var _createStore = __webpack_require__(3);
-
+	
 	var _createStore2 = _interopRequireDefault(_createStore);
-
+	
 	var _combineReducers = __webpack_require__(7);
-
+	
 	var _combineReducers2 = _interopRequireDefault(_combineReducers);
-
+	
 	var _bindActionCreators = __webpack_require__(9);
-
+	
 	var _bindActionCreators2 = _interopRequireDefault(_bindActionCreators);
-
+	
 	var _applyMiddleware = __webpack_require__(10);
-
+	
 	var _applyMiddleware2 = _interopRequireDefault(_applyMiddleware);
-
+	
 	var _compose = __webpack_require__(11);
-
+	
 	var _compose2 = _interopRequireDefault(_compose);
-
+	
 	var _warning = __webpack_require__(8);
-
+	
 	var _warning2 = _interopRequireDefault(_warning);
-
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
+	
 	/*
 	* This is a dummy function to check if the function name has been altered by minification.
 	* If the function has been minified and NODE_ENV !== 'production', warn the user.
 	*/
 	function isCrushed() {}
-
+	
 	if (process.env.NODE_ENV !== 'production' && typeof isCrushed.name === 'string' && isCrushed.name !== 'isCrushed') {
 	  (0, _warning2["default"])('You are currently using minified code outside of NODE_ENV === \'production\'. ' + 'This means that you are running a slower development build of Redux. ' + 'You can use loose-envify (https://github.com/zertosh/loose-envify) for browserify ' + 'or DefinePlugin for webpack (http://stackoverflow.com/questions/30030031) ' + 'to ensure you have the correct code for your production build.');
 	}
-
+	
 	exports.createStore = _createStore2["default"];
 	exports.combineReducers = _combineReducers2["default"];
 	exports.bindActionCreators = _bindActionCreators2["default"];
@@ -136,13 +267,13 @@
 /***/ function(module, exports) {
 
 	// shim for using process in browser
-
+	
 	var process = module.exports = {};
 	var queue = [];
 	var draining = false;
 	var currentQueue;
 	var queueIndex = -1;
-
+	
 	function cleanUpNextTick() {
 	    draining = false;
 	    if (currentQueue.length) {
@@ -154,14 +285,14 @@
 	        drainQueue();
 	    }
 	}
-
+	
 	function drainQueue() {
 	    if (draining) {
 	        return;
 	    }
 	    var timeout = setTimeout(cleanUpNextTick);
 	    draining = true;
-
+	
 	    var len = queue.length;
 	    while(len) {
 	        currentQueue = queue;
@@ -178,7 +309,7 @@
 	    draining = false;
 	    clearTimeout(timeout);
 	}
-
+	
 	process.nextTick = function (fun) {
 	    var args = new Array(arguments.length - 1);
 	    if (arguments.length > 1) {
@@ -191,7 +322,7 @@
 	        setTimeout(drainQueue, 0);
 	    }
 	};
-
+	
 	// v8 likes predictible objects
 	function Item(fun, array) {
 	    this.fun = fun;
@@ -206,9 +337,9 @@
 	process.argv = [];
 	process.version = ''; // empty string to avoid regexp issues
 	process.versions = {};
-
+	
 	function noop() {}
-
+	
 	process.on = noop;
 	process.addListener = noop;
 	process.once = noop;
@@ -216,11 +347,11 @@
 	process.removeListener = noop;
 	process.removeAllListeners = noop;
 	process.emit = noop;
-
+	
 	process.binding = function (name) {
 	    throw new Error('process.binding is not supported');
 	};
-
+	
 	process.cwd = function () { return '/' };
 	process.chdir = function (dir) {
 	    throw new Error('process.chdir is not supported');
@@ -233,17 +364,17 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-
+	
 	exports.__esModule = true;
 	exports.ActionTypes = undefined;
 	exports["default"] = createStore;
-
+	
 	var _isPlainObject = __webpack_require__(4);
-
+	
 	var _isPlainObject2 = _interopRequireDefault(_isPlainObject);
-
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
+	
 	/**
 	 * These are private action types reserved by Redux.
 	 * For any unknown actions, you must return the current state.
@@ -253,7 +384,7 @@
 	var ActionTypes = exports.ActionTypes = {
 	  INIT: '@@redux/INIT'
 	};
-
+	
 	/**
 	 * Creates a Redux store that holds the state tree.
 	 * The only way to change the data in the store is to call `dispatch()` on it.
@@ -284,31 +415,31 @@
 	    enhancer = initialState;
 	    initialState = undefined;
 	  }
-
+	
 	  if (typeof enhancer !== 'undefined') {
 	    if (typeof enhancer !== 'function') {
 	      throw new Error('Expected the enhancer to be a function.');
 	    }
-
+	
 	    return enhancer(createStore)(reducer, initialState);
 	  }
-
+	
 	  if (typeof reducer !== 'function') {
 	    throw new Error('Expected the reducer to be a function.');
 	  }
-
+	
 	  var currentReducer = reducer;
 	  var currentState = initialState;
 	  var currentListeners = [];
 	  var nextListeners = currentListeners;
 	  var isDispatching = false;
-
+	
 	  function ensureCanMutateNextListeners() {
 	    if (nextListeners === currentListeners) {
 	      nextListeners = currentListeners.slice();
 	    }
 	  }
-
+	
 	  /**
 	   * Reads the state tree managed by the store.
 	   *
@@ -317,7 +448,7 @@
 	  function getState() {
 	    return currentState;
 	  }
-
+	
 	  /**
 	   * Adds a change listener. It will be called any time an action is dispatched,
 	   * and some part of the state tree may potentially have changed. You may then
@@ -345,25 +476,25 @@
 	    if (typeof listener !== 'function') {
 	      throw new Error('Expected listener to be a function.');
 	    }
-
+	
 	    var isSubscribed = true;
-
+	
 	    ensureCanMutateNextListeners();
 	    nextListeners.push(listener);
-
+	
 	    return function unsubscribe() {
 	      if (!isSubscribed) {
 	        return;
 	      }
-
+	
 	      isSubscribed = false;
-
+	
 	      ensureCanMutateNextListeners();
 	      var index = nextListeners.indexOf(listener);
 	      nextListeners.splice(index, 1);
 	    };
 	  }
-
+	
 	  /**
 	   * Dispatches an action. It is the only way to trigger a state change.
 	   *
@@ -393,30 +524,30 @@
 	    if (!(0, _isPlainObject2["default"])(action)) {
 	      throw new Error('Actions must be plain objects. ' + 'Use custom middleware for async actions.');
 	    }
-
+	
 	    if (typeof action.type === 'undefined') {
 	      throw new Error('Actions may not have an undefined "type" property. ' + 'Have you misspelled a constant?');
 	    }
-
+	
 	    if (isDispatching) {
 	      throw new Error('Reducers may not dispatch actions.');
 	    }
-
+	
 	    try {
 	      isDispatching = true;
 	      currentState = currentReducer(currentState, action);
 	    } finally {
 	      isDispatching = false;
 	    }
-
+	
 	    var listeners = currentListeners = nextListeners;
 	    for (var i = 0; i < listeners.length; i++) {
 	      listeners[i]();
 	    }
-
+	
 	    return action;
 	  }
-
+	
 	  /**
 	   * Replaces the reducer currently used by the store to calculate the state.
 	   *
@@ -431,16 +562,16 @@
 	    if (typeof nextReducer !== 'function') {
 	      throw new Error('Expected the nextReducer to be a function.');
 	    }
-
+	
 	    currentReducer = nextReducer;
 	    dispatch({ type: ActionTypes.INIT });
 	  }
-
+	
 	  // When a store is created, an "INIT" action is dispatched so that every
 	  // reducer returns their initial state. This effectively populates
 	  // the initial state tree.
 	  dispatch({ type: ActionTypes.INIT });
-
+	
 	  return {
 	    dispatch: dispatch,
 	    subscribe: subscribe,
@@ -455,28 +586,28 @@
 
 	var isHostObject = __webpack_require__(5),
 	    isObjectLike = __webpack_require__(6);
-
+	
 	/** `Object#toString` result references. */
 	var objectTag = '[object Object]';
-
+	
 	/** Used for built-in method references. */
 	var objectProto = Object.prototype;
-
+	
 	/** Used to resolve the decompiled source of functions. */
 	var funcToString = Function.prototype.toString;
-
+	
 	/** Used to infer the `Object` constructor. */
 	var objectCtorString = funcToString.call(Object);
-
+	
 	/**
 	 * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
 	 * of values.
 	 */
 	var objectToString = objectProto.toString;
-
+	
 	/** Built-in value references. */
 	var getPrototypeOf = Object.getPrototypeOf;
-
+	
 	/**
 	 * Checks if `value` is a plain object, that is, an object created by the
 	 * `Object` constructor or one with a `[[Prototype]]` of `null`.
@@ -519,7 +650,7 @@
 	  return (typeof Ctor == 'function' &&
 	    Ctor instanceof Ctor && funcToString.call(Ctor) == objectCtorString);
 	}
-
+	
 	module.exports = isPlainObject;
 
 
@@ -545,7 +676,7 @@
 	  }
 	  return result;
 	}
-
+	
 	module.exports = isHostObject;
 
 
@@ -579,7 +710,7 @@
 	function isObjectLike(value) {
 	  return !!value && typeof value == 'object';
 	}
-
+	
 	module.exports = isObjectLike;
 
 
@@ -588,66 +719,66 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
-
+	
 	exports.__esModule = true;
 	exports["default"] = combineReducers;
-
+	
 	var _createStore = __webpack_require__(3);
-
+	
 	var _isPlainObject = __webpack_require__(4);
-
+	
 	var _isPlainObject2 = _interopRequireDefault(_isPlainObject);
-
+	
 	var _warning = __webpack_require__(8);
-
+	
 	var _warning2 = _interopRequireDefault(_warning);
-
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
+	
 	function getUndefinedStateErrorMessage(key, action) {
 	  var actionType = action && action.type;
 	  var actionName = actionType && '"' + actionType.toString() + '"' || 'an action';
-
+	
 	  return 'Reducer "' + key + '" returned undefined handling ' + actionName + '. ' + 'To ignore an action, you must explicitly return the previous state.';
 	}
-
+	
 	function getUnexpectedStateShapeWarningMessage(inputState, reducers, action) {
 	  var reducerKeys = Object.keys(reducers);
 	  var argumentName = action && action.type === _createStore.ActionTypes.INIT ? 'initialState argument passed to createStore' : 'previous state received by the reducer';
-
+	
 	  if (reducerKeys.length === 0) {
 	    return 'Store does not have a valid reducer. Make sure the argument passed ' + 'to combineReducers is an object whose values are reducers.';
 	  }
-
+	
 	  if (!(0, _isPlainObject2["default"])(inputState)) {
 	    return 'The ' + argumentName + ' has unexpected type of "' + {}.toString.call(inputState).match(/\s([a-z|A-Z]+)/)[1] + '". Expected argument to be an object with the following ' + ('keys: "' + reducerKeys.join('", "') + '"');
 	  }
-
+	
 	  var unexpectedKeys = Object.keys(inputState).filter(function (key) {
 	    return !reducers.hasOwnProperty(key);
 	  });
-
+	
 	  if (unexpectedKeys.length > 0) {
 	    return 'Unexpected ' + (unexpectedKeys.length > 1 ? 'keys' : 'key') + ' ' + ('"' + unexpectedKeys.join('", "') + '" found in ' + argumentName + '. ') + 'Expected to find one of the known reducer keys instead: ' + ('"' + reducerKeys.join('", "') + '". Unexpected keys will be ignored.');
 	  }
 	}
-
+	
 	function assertReducerSanity(reducers) {
 	  Object.keys(reducers).forEach(function (key) {
 	    var reducer = reducers[key];
 	    var initialState = reducer(undefined, { type: _createStore.ActionTypes.INIT });
-
+	
 	    if (typeof initialState === 'undefined') {
 	      throw new Error('Reducer "' + key + '" returned undefined during initialization. ' + 'If the state passed to the reducer is undefined, you must ' + 'explicitly return the initial state. The initial state may ' + 'not be undefined.');
 	    }
-
+	
 	    var type = '@@redux/PROBE_UNKNOWN_ACTION_' + Math.random().toString(36).substring(7).split('').join('.');
 	    if (typeof reducer(undefined, { type: type }) === 'undefined') {
 	      throw new Error('Reducer "' + key + '" returned undefined when probed with a random type. ' + ('Don\'t try to handle ' + _createStore.ActionTypes.INIT + ' or other actions in "redux/*" ') + 'namespace. They are considered private. Instead, you must return the ' + 'current state for any unknown actions, unless it is undefined, ' + 'in which case you must return the initial state, regardless of the ' + 'action type. The initial state may not be undefined.');
 	    }
 	  });
 	}
-
+	
 	/**
 	 * Turns an object whose values are different reducer functions, into a single
 	 * reducer function. It will call every child reducer, and gather their results
@@ -674,29 +805,29 @@
 	    }
 	  }
 	  var finalReducerKeys = Object.keys(finalReducers);
-
+	
 	  var sanityError;
 	  try {
 	    assertReducerSanity(finalReducers);
 	  } catch (e) {
 	    sanityError = e;
 	  }
-
+	
 	  return function combination() {
 	    var state = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
 	    var action = arguments[1];
-
+	
 	    if (sanityError) {
 	      throw sanityError;
 	    }
-
+	
 	    if (process.env.NODE_ENV !== 'production') {
 	      var warningMessage = getUnexpectedStateShapeWarningMessage(state, finalReducers, action);
 	      if (warningMessage) {
 	        (0, _warning2["default"])(warningMessage);
 	      }
 	    }
-
+	
 	    var hasChanged = false;
 	    var nextState = {};
 	    for (var i = 0; i < finalReducerKeys.length; i++) {
@@ -721,7 +852,7 @@
 /***/ function(module, exports) {
 
 	'use strict';
-
+	
 	exports.__esModule = true;
 	exports["default"] = warning;
 	/**
@@ -750,7 +881,7 @@
 /***/ function(module, exports) {
 
 	'use strict';
-
+	
 	exports.__esModule = true;
 	exports["default"] = bindActionCreators;
 	function bindActionCreator(actionCreator, dispatch) {
@@ -758,7 +889,7 @@
 	    return dispatch(actionCreator.apply(undefined, arguments));
 	  };
 	}
-
+	
 	/**
 	 * Turns an object whose values are action creators, into an object with the
 	 * same keys, but with every function wrapped into a `dispatch` call so they
@@ -784,11 +915,11 @@
 	  if (typeof actionCreators === 'function') {
 	    return bindActionCreator(actionCreators, dispatch);
 	  }
-
+	
 	  if (typeof actionCreators !== 'object' || actionCreators === null) {
 	    throw new Error('bindActionCreators expected an object or a function, instead received ' + (actionCreators === null ? 'null' : typeof actionCreators) + '. ' + 'Did you write "import ActionCreators from" instead of "import * as ActionCreators from"?');
 	  }
-
+	
 	  var keys = Object.keys(actionCreators);
 	  var boundActionCreators = {};
 	  for (var i = 0; i < keys.length; i++) {
@@ -806,18 +937,18 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-
+	
 	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
-
+	
 	exports.__esModule = true;
 	exports["default"] = applyMiddleware;
-
+	
 	var _compose = __webpack_require__(11);
-
+	
 	var _compose2 = _interopRequireDefault(_compose);
-
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
+	
 	/**
 	 * Creates a store enhancer that applies middleware to the dispatch method
 	 * of the Redux store. This is handy for a variety of tasks, such as expressing
@@ -838,13 +969,13 @@
 	  for (var _len = arguments.length, middlewares = Array(_len), _key = 0; _key < _len; _key++) {
 	    middlewares[_key] = arguments[_key];
 	  }
-
+	
 	  return function (createStore) {
 	    return function (reducer, initialState, enhancer) {
 	      var store = createStore(reducer, initialState, enhancer);
 	      var _dispatch = store.dispatch;
 	      var chain = [];
-
+	
 	      var middlewareAPI = {
 	        getState: store.getState,
 	        dispatch: function dispatch(action) {
@@ -855,7 +986,7 @@
 	        return middleware(middlewareAPI);
 	      });
 	      _dispatch = _compose2["default"].apply(undefined, chain)(store.dispatch);
-
+	
 	      return _extends({}, store, {
 	        dispatch: _dispatch
 	      });
@@ -868,7 +999,7 @@
 /***/ function(module, exports) {
 
 	"use strict";
-
+	
 	exports.__esModule = true;
 	exports["default"] = compose;
 	/**
@@ -882,15 +1013,15 @@
 	  for (var _len = arguments.length, funcs = Array(_len), _key = 0; _key < _len; _key++) {
 	    funcs[_key] = arguments[_key];
 	  }
-
+	
 	  return function () {
 	    if (funcs.length === 0) {
 	      return arguments.length <= 0 ? undefined : arguments[0];
 	    }
-
+	
 	    var last = funcs[funcs.length - 1];
 	    var rest = funcs.slice(0, -1);
-
+	
 	    return rest.reduceRight(function (composed, f) {
 	      return f(composed);
 	    }, last.apply(undefined, arguments));
@@ -902,118 +1033,143 @@
 /***/ function(module, exports) {
 
 	'use strict';
-
+	
 	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
-
+	
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
-
+	/**
+	 * Scheduler renderer.
+	 * @param  {array} constants  Constants specific to the algorithm's drawings. KEEP?
+	 * @return {Object}           Object with render function
+	 */
+	
 	exports.default = function (constants) {
 	  // Canvas, context
 	  var canvas = document.createElement('canvas');
 	  var W = canvas.width = window.innerWidth;
 	  var H = canvas.height = window.innerHeight;
 	  var ctx = canvas.getContext('2d');
-
+	
 	  var PENDING_CONSIDERATION = constants.PENDING_CONSIDERATION;
 	  var REJECTED = constants.REJECTED;
 	  var ACCEPTED = constants.ACCEPTED;
-
+	  var CURRENT_SMALLEST = constants.CURRENT_SMALLEST;
+	
 	  // Append to body
-
+	
 	  document.body.style.margin = 0;
 	  document.body.appendChild(canvas);
-
+	
 	  // Settings
 	  var TIMELINE_START = 0.2;
 	  var TIMELINE_END = 0.8;
 	  var ROW_HEIGHT = 20;
 	  var ROW_PADDING = 10;
 	  var OFFSET_TOP = 50;
-
+	
 	  var jobs = [];
-
+	
 	  var update = function update(_ref) {
 	    var js = _ref.js;
-
+	
+	    jobs = [];
 	    js.forEach(function (job, i) {
 	      return jobs.push(_extends({}, job, {
 	        row: i
 	      }));
 	    });
 	  };
-
+	
 	  var clear = function clear() {
 	    ctx.fillStyle = 'black';
 	    ctx.fillRect(0, 0, W, H);
 	  };
-
-	  var drawJob = function drawJob(_ref2) {
+	
+	  /**
+	   * Draw a job.
+	   * (job, state)
+	   * @param  {Number} start  Start time.
+	   * @param  {Number} end    End Time.
+	   * @param  {Number} row    Row, or array index.
+	   * @param  {String} status Current job status.
+	   * @param  {Number} smallest  Index of currently smallest job.
+	   * @return none
+	   */
+	  var drawJob = function drawJob(_ref2, _ref3) {
 	    var start = _ref2.start;
 	    var end = _ref2.end;
 	    var row = _ref2.row;
 	    var status = _ref2.status;
-
+	    var smallest = _ref3.smallest;
+	
 	    var colour = undefined;
+	    var fontColour = 'white';
 	    if (status === PENDING_CONSIDERATION) {
 	      colour = 'blue';
 	    } else if (status === REJECTED) {
 	      colour = 'red';
 	    } else if (status === ACCEPTED) {
 	      colour = 'green';
+	    } else if (status === CURRENT_SMALLEST) {
+	      colour = 'yellow';
+	      fontColour = 'black';
 	    }
-
+	
 	    ctx.strokeStyle = colour;
 	    ctx.lineWidth = ROW_HEIGHT;
-
+	
 	    var x1 = W * TIMELINE_START + start * (W * (TIMELINE_END - TIMELINE_START));
 	    var x2 = W * TIMELINE_START + end * (W * (TIMELINE_END - TIMELINE_START));
 	    var y1 = row * (ROW_HEIGHT + ROW_PADDING) + OFFSET_TOP;
 	    var y2 = y1;
-
+	
 	    ctx.beginPath();
 	    ctx.moveTo(x1, y1);
 	    ctx.lineTo(x2, y2);
 	    ctx.closePath();
-
+	
 	    ctx.stroke();
-
+	
 	    ctx.font = "20px Comic Sans MS";
-	    ctx.fillStyle = 'white';
+	    ctx.fillStyle = fontColour;
 	    ctx.fillText(row, x1, y1 + 7);
 	  };
-
+	
 	  var drawTimeline = function drawTimeline() {
 	    ctx.strokeStyle = 'orange';
 	    ctx.lineWidth = 4;
-
+	
 	    var y = jobs.length * (ROW_HEIGHT + ROW_PADDING) + OFFSET_TOP;
-
+	
 	    ctx.beginPath();
 	    ctx.moveTo(W * TIMELINE_START, y);
 	    ctx.lineTo(W * TIMELINE_END, y);
 	    ctx.closePath();
-
+	
 	    ctx.stroke();
 	  };
-
-	  var draw = function draw() {
+	
+	  var draw = function draw(state) {
 	    drawTimeline();
 	    jobs.forEach(function (job) {
-	      return drawJob(job);
+	      return drawJob(job, state);
 	    });
 	  };
-
+	
 	  var render = function render(state) {
+	    console.log(state);
+	
 	    update(state);
-
+	
 	    clear();
-	    draw();
+	    draw(state);
 	  };
-
+	
 	  return { render: render };
 	};
 
 /***/ }
 /******/ ]);
+//# sourceMappingURL=interval-scheduling.js.map
