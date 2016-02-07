@@ -1,3 +1,8 @@
+/**
+ * Scheduler renderer.
+ * @param  {array} constants  Constants specific to the algorithm's drawings. KEEP?
+ * @return {Object}           Object with render function
+ */
 export default (constants) => {
   // Canvas, context
   const canvas = document.createElement('canvas')
@@ -5,7 +10,7 @@ export default (constants) => {
   const H = canvas.height = window.innerHeight
   const ctx = canvas.getContext('2d')
 
-  const { PENDING_CONSIDERATION, REJECTED, ACCEPTED } = constants
+  const { PENDING_CONSIDERATION, REJECTED, ACCEPTED, CURRENT_SMALLEST } = constants
 
   // Append to body
   document.body.style.margin = 0
@@ -21,6 +26,7 @@ export default (constants) => {
   let jobs = []
 
   const update = ({ js }) => {
+    jobs = []
     js.forEach( (job, i) => jobs.push({
       ...job,
       row: i
@@ -32,8 +38,19 @@ export default (constants) => {
     ctx.fillRect(0,0,W, H)
   }
 
-  const drawJob = ({ start, end, row, status }) => {
+  /**
+   * Draw a job.
+   * (job, state)
+   * @param  {Number} start  Start time.
+   * @param  {Number} end    End Time.
+   * @param  {Number} row    Row, or array index.
+   * @param  {String} status Current job status.
+   * @param  {Number} smallest  Index of currently smallest job.
+   * @return none
+   */
+  const drawJob = ({ start, end, row, status }, { smallest }) => {
     let colour
+    let fontColour = 'white'
     if (status === PENDING_CONSIDERATION) {
       colour = 'blue'
     } else if (status === REJECTED) {
@@ -42,6 +59,10 @@ export default (constants) => {
       colour = 'green'
     }
 
+    if (row === smallest) {
+      colour = 'yellow'
+      fontColour = 'black'
+    }
 
     ctx.strokeStyle = colour
     ctx.lineWidth = ROW_HEIGHT
@@ -59,7 +80,7 @@ export default (constants) => {
     ctx.stroke()
 
     ctx.font = "20px Comic Sans MS";
-    ctx.fillStyle = 'white'
+    ctx.fillStyle = fontColour
     ctx.fillText(row, x1, y1 + 7)
   }
 
@@ -77,16 +98,16 @@ export default (constants) => {
     ctx.stroke()
   }
 
-  const draw = () => {
+  const draw = (state) => {
     drawTimeline()
-    jobs.forEach(job => drawJob(job))
+    jobs.forEach(job => drawJob(job, state))
   }
 
   const render = (state) => {
     update(state)
 
     clear()
-    draw()
+    draw(state)
   }
 
   return { render }

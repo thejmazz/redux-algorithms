@@ -26,6 +26,7 @@ const genConfig = co.wrap(function* () {
       path: 'dist',
       filename: '[name].js'
     },
+    devtool: 'source-map',
     module: {
       loaders: [{
         test: /\.js$/,
