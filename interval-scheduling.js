@@ -73,7 +73,9 @@
 
 	var myScheduler = (0, _scheduler2.default)({ PENDING_CONSIDERATION: PENDING_CONSIDERATION, REJECTED: REJECTED, ACCEPTED: ACCEPTED });
 
-	var state = [job({ start: 0.1, end: 0.3 })];
+	var state = {
+	  js: [job({ start: 0, end: 0.6 }), job({ start: 0.1, end: 0.4 }), job({ start: 0.3, end: 0.5 }), job({ start: 0.3, end: 0.8 }), job({ start: 0.4, end: 0.7 }), job({ start: 0.5, end: 0.9 }), job({ start: 0.6, end: 1 }), job({ start: 0.8, end: 1 })]
+	};
 
 	myScheduler.render(state);
 
@@ -901,6 +903,8 @@
 
 	'use strict';
 
+	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
@@ -924,13 +928,20 @@
 	  // Settings
 	  var TIMELINE_START = 0.2;
 	  var TIMELINE_END = 0.8;
-	  var ROW_HEIGHT = '20';
-	  var ROW_PADDING = '5';
+	  var ROW_HEIGHT = 20;
+	  var ROW_PADDING = 10;
+	  var OFFSET_TOP = 50;
 
 	  var jobs = [];
 
-	  var update = function update(state) {
-	    jobs = state;
+	  var update = function update(_ref) {
+	    var js = _ref.js;
+
+	    js.forEach(function (job, i) {
+	      return jobs.push(_extends({}, job, {
+	        row: i
+	      }));
+	    });
 	  };
 
 	  var clear = function clear() {
@@ -938,11 +949,11 @@
 	    ctx.fillRect(0, 0, W, H);
 	  };
 
-	  var drawJob = function drawJob(_ref) {
-	    var start = _ref.start;
-	    var end = _ref.end;
-	    var row = _ref.row;
-	    var status = _ref.status;
+	  var drawJob = function drawJob(_ref2) {
+	    var start = _ref2.start;
+	    var end = _ref2.end;
+	    var row = _ref2.row;
+	    var status = _ref2.status;
 
 	    var colour = undefined;
 	    if (status === PENDING_CONSIDERATION) {
@@ -956,19 +967,28 @@
 	    ctx.strokeStyle = colour;
 	    ctx.lineWidth = ROW_HEIGHT;
 
+	    var x1 = W * TIMELINE_START + start * (W * (TIMELINE_END - TIMELINE_START));
+	    var x2 = W * TIMELINE_START + end * (W * (TIMELINE_END - TIMELINE_START));
+	    var y1 = row * (ROW_HEIGHT + ROW_PADDING) + OFFSET_TOP;
+	    var y2 = y1;
+
 	    ctx.beginPath();
-	    ctx.moveTo(W * TIMELINE_START + start * (W * (TIMELINE_END - TIMELINE_START)), row * ROW_HEIGHT + ROW_PADDING);
-	    ctx.lineTo(W * TIMELINE_START + end * (W * (TIMELINE_END - TIMELINE_START)), row * ROW_HEIGHT + ROW_PADDING);
+	    ctx.moveTo(x1, y1);
+	    ctx.lineTo(x2, y2);
 	    ctx.closePath();
 
 	    ctx.stroke();
 
-	    console.log('drew a job?');
+	    ctx.font = "20px Comic Sans MS";
+	    ctx.fillStyle = 'white';
+	    ctx.fillText(row, x1, y1 + 7);
 	  };
 
-	  var drawTimeline = function drawTimeline(y) {
+	  var drawTimeline = function drawTimeline() {
 	    ctx.strokeStyle = 'orange';
 	    ctx.lineWidth = 4;
+
+	    var y = jobs.length * (ROW_HEIGHT + ROW_PADDING) + OFFSET_TOP;
 
 	    ctx.beginPath();
 	    ctx.moveTo(W * TIMELINE_START, y);
@@ -979,7 +999,7 @@
 	  };
 
 	  var draw = function draw() {
-	    drawTimeline(100);
+	    drawTimeline();
 	    jobs.forEach(function (job) {
 	      return drawJob(job);
 	    });
