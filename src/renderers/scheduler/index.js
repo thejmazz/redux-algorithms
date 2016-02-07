@@ -14,13 +14,17 @@ export default (constants) => {
   // Settings
   const TIMELINE_START = 0.2
   const TIMELINE_END = 0.8
-  const ROW_HEIGHT = '20'
-  const ROW_PADDING = '5'
+  const ROW_HEIGHT = 20
+  const ROW_PADDING = 10
+  const OFFSET_TOP = 50
 
   let jobs = []
 
-  const update = (state) => {
-    jobs = state
+  const update = ({ js }) => {
+    js.forEach( (job, i) => jobs.push({
+      ...job,
+      row: i
+    }))
   }
 
   const clear = () => {
@@ -38,22 +42,32 @@ export default (constants) => {
       colour = 'green'
     }
 
+
     ctx.strokeStyle = colour
     ctx.lineWidth = ROW_HEIGHT
 
+    const x1 = W*TIMELINE_START + start*(W*(TIMELINE_END - TIMELINE_START))
+    const x2 = W*TIMELINE_START + end*(W*(TIMELINE_END - TIMELINE_START))
+    const y1 = row*(ROW_HEIGHT + ROW_PADDING) + OFFSET_TOP
+    const y2 = y1
+
     ctx.beginPath()
-    ctx.moveTo(W*TIMELINE_START + start*(W*(TIMELINE_END - TIMELINE_START)), row*ROW_HEIGHT + ROW_PADDING)
-    ctx.lineTo(W*TIMELINE_START + end*(W*(TIMELINE_END - TIMELINE_START)), row*ROW_HEIGHT + ROW_PADDING)
+    ctx.moveTo(x1, y1)
+    ctx.lineTo(x2, y2)
     ctx.closePath()
 
     ctx.stroke()
 
-    console.log('drew a job?')
+    ctx.font = "20px Comic Sans MS";
+    ctx.fillStyle = 'white'
+    ctx.fillText(row, x1, y1 + 7)
   }
 
-  const drawTimeline = (y) => {
+  const drawTimeline = () => {
     ctx.strokeStyle = 'orange'
     ctx.lineWidth = 4
+
+    const y = jobs.length*(ROW_HEIGHT + ROW_PADDING) + OFFSET_TOP
 
     ctx.beginPath()
     ctx.moveTo(W*TIMELINE_START, y)
@@ -64,7 +78,7 @@ export default (constants) => {
   }
 
   const draw = () => {
-    drawTimeline(100)
+    drawTimeline()
     jobs.forEach(job => drawJob(job))
   }
 
