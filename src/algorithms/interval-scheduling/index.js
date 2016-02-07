@@ -4,33 +4,41 @@ import { createStore } from 'redux'
 import scheduler from '../../renderers/scheduler'
 
 // Constants
-const PENDING_CONSIDERATION = 'PENDING_CONSIDERATION'
-const REJECTED = 'REJECTED'
-const ACCEPTED = 'ACCEPTED'
-const CURRENT_SMALLEST = 'CURRENT_SMALLEST'
+import { PENDING_CONSIDERATION, REJECTED, ACCEPTED, CURRENT_SMALLEST, PICK_SMALLEST_FINISH_TIME, DELETE_INCOMPATIBLES, ACCEPT_CURRENT } from './constants.js'
 // Actions
-const PICK_SMALLEST_FINISH_TIME = 'PICK_SMALLEST_FINISH_TIME'
-const pickSmallestFinishTime = {
-  type: PICK_SMALLEST_FINISH_TIME
-}
-const DELETE_INCOMPATIBLES = 'DELETE_INCOMPATIBLES'
-const deleteIncompatibles = {
-  type: DELETE_INCOMPATIBLES
-}
-const ACCEPT_CURRENT = 'ACCEPT_CURRENT'
-const acceptCurrent = {
-  type: ACCEPT_CURRENT
-}
+import { pickSmallestFinishTime, deleteIncompatibles, acceptCurrent } from './actions.js'
 
 // Job factory - society
 const job = ({start, end, row = 0, status = PENDING_CONSIDERATION}) => ({start, end, row, status})
 
 // Renderer
-const myScheduler = scheduler({ PENDING_CONSIDERATION, REJECTED, ACCEPTED, CURRENT_SMALLEST })
+const myScheduler = scheduler()
+
+const colourJobs = (jobs) => {
+  jobs.forEach( (job) => {
+    const { status } = job
+
+    if (status === PENDING_CONSIDERATION) {
+      job.colour = 'blue'
+      job.fontColour = 'white'
+    } else if (status === REJECTED) {
+      job.colour = 'red'
+      job.fontColour = 'white'
+    } else if (status === ACCEPTED) {
+      job.colour = 'green'
+      job.fontColour = 'white'
+    } else if (status === CURRENT_SMALLEST) {
+      job.colour = 'yellow'
+      job.fontColour = 'black'
+    }
+  })
+
+  return jobs
+}
 
 const initialState = {
   // conflict with jobs in renderer
-  js: [
+  js: colourJobs([
     job({start: 0, end: 0.6}),
     job({start: 0.1, end: 0.4}),
     job({start: 0.3, end: 0.5}),
@@ -39,7 +47,7 @@ const initialState = {
     job({start: 0.5, end: 0.9}),
     job({start: 0.6, end: 1}),
     job({start: 0.8, end: 1})
-  ],
+  ]),
   smallest: 0,
   lastAction: { type: null }
 }
@@ -58,7 +66,6 @@ const intervalScheduler = (state = initialState, { type }) => {
           smallestIndex = i
       }
 
-
       state.js.forEach( (job, i) => {
         if (job.status === PENDING_CONSIDERATION) {
           if (job.end < smallest) {
@@ -70,10 +77,9 @@ const intervalScheduler = (state = initialState, { type }) => {
 
       newJs = state.js
       newJs[smallestIndex].status = CURRENT_SMALLEST
-      console.log("SET SMALLEST TO", smallestIndex)
 
       return {...state,
-        js: newJs,
+        js: colourJobs(newJs),
         smallest: smallestIndex,
         lastAction: pickSmallestFinishTime
       }
@@ -93,7 +99,7 @@ const intervalScheduler = (state = initialState, { type }) => {
       })
 
       return {...state,
-        js: newJs,
+        js: colourJobs(newJs),
         lastAction: deleteIncompatibles
       }
     case (ACCEPT_CURRENT):
@@ -101,7 +107,7 @@ const intervalScheduler = (state = initialState, { type }) => {
       newJs[state.smallest].status = ACCEPTED
 
       return {...state,
-        js: newJs,
+        js: colourJobs(newJs),
         lastAction: acceptCurrent
       }
     default:
@@ -128,22 +134,17 @@ nextButton.innerHTML = 'next'
 nextButton.onclick = () => {
 
   let type = store.getState().lastAction.type
-  console.log(type)
   switch(type) {
     case (null):
-      console.log('pickSmallestFinishTime')
       store.dispatch(pickSmallestFinishTime)
       break;
     case (PICK_SMALLEST_FINISH_TIME):
-      console.log('deleteIncompatibles')
       store.dispatch(deleteIncompatibles)
       break;
     case (DELETE_INCOMPATIBLES):
-      console.log('acceptCurrent')
       store.dispatch(acceptCurrent)
       break;
     case (ACCEPT_CURRENT):
-      console.log('pickSmallestFinishTime')
       store.dispatch(pickSmallestFinishTime)
       break;
     default:

@@ -3,14 +3,12 @@
  * @param  {array} constants  Constants specific to the algorithm's drawings. KEEP?
  * @return {Object}           Object with render function
  */
-export default (constants) => {
+export default () => {
   // Canvas, context
   const canvas = document.createElement('canvas')
   const W = canvas.width = window.innerWidth
   const H = canvas.height = window.innerHeight
   const ctx = canvas.getContext('2d')
-
-  const { PENDING_CONSIDERATION, REJECTED, ACCEPTED, CURRENT_SMALLEST } = constants
 
   // Append to body
   document.body.style.margin = 0
@@ -48,20 +46,7 @@ export default (constants) => {
    * @param  {Number} smallest  Index of currently smallest job.
    * @return none
    */
-  const drawJob = ({ start, end, row, status }, { smallest }) => {
-    let colour
-    let fontColour = 'white'
-    if (status === PENDING_CONSIDERATION) {
-      colour = 'blue'
-    } else if (status === REJECTED) {
-      colour = 'red'
-    } else if (status === ACCEPTED) {
-      colour = 'green'
-    } else if (status === CURRENT_SMALLEST) {
-      colour = 'yellow'
-      fontColour = 'black'
-    }
-
+  const drawJob = ({ start, end, row, status, colour, fontColour }, { smallest }) => {
     ctx.strokeStyle = colour
     ctx.lineWidth = ROW_HEIGHT
 
